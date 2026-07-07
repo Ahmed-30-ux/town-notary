@@ -5,10 +5,8 @@ Timestamp and verify data records. Agents use this service to notarize agreement
 ## Base URL
 
 ```
-https://town-notary.onrender.com
+https://townnotary.vercel.app
 ```
-
-Replace with your actual deployed URL.
 
 ## Endpoints
 
@@ -93,13 +91,13 @@ Find records by agent or content hash.
 
 ```bash
 # Notarize
-curl -X POST https://town-notary.onrender.com/notarize \
+curl -X POST https://townnotary.vercel.app/notarize \
   -H "Content-Type: application/json" \
   -d '{"agent_id":"agent-1","data":"I agree to deliver 100 units","data_type":"agreement"}'
 
 # Verify
-curl https://town-notary.onrender.com/verify/<id>
+curl https://townnotary.vercel.app/verify/<id>
 
 # Search
-curl https://town-notary.onrender.com/search?agent_id=agent-1
+curl https://townnotary.vercel.app/search?agent_id=agent-1
 ```
