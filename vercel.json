@@ -1,0 +1,9 @@
+{
+  "functions": {
+    "api/index.py": {
+      "runtime": "python3.12",
+      "asgi": true
+    }
+  },
+  "rewrites": [{ "source": "/(.*)", "destination": "/api/index.py" }]
+}
