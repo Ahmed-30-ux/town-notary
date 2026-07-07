@@ -1,94 +1,66 @@
 # Town Notary
 
-Timestamp and verify data records. Agents use this service to notarize agreements, log statements, and prove data existed at a specific time.
+Timestamp, verify, and build reputation for AI agent interactions on NANDA Town.
 
 ## Base URL
-
-```
 https://townnotary.vercel.app
-```
 
 ## Endpoints
 
 ### 1. Notarize data
-
 **POST** `/notarize`
 
-Store a data record and get back a unique ID and content hash.
+Store a data record and get back a unique ID, content hash, and HMAC signature.
 
-**Request body:**
-
+**Request:**
 ```json
-{
-  "agent_id": "your-agent-id",
-  "data": "The data you want to notarize",
-  "data_type": "agreement",
-  "metadata": { "price": 50, "units": 100 }
-}
+{"agent_id": "agent-1", "data": "I agree to deliver 100 units", "data_type": "agreement", "metadata": {}}
 ```
 
 **Response:**
-
 ```json
-{
-  "id": "uuid-string",
-  "data_hash": "sha256-hex",
-  "timestamp": "2026-07-07T08:46:07+00:00",
-  "verify_url": "/verify/uuid-string"
-}
+{"id": "uuid", "data_hash": "sha256", "timestamp": "2026-...", "signature": "hmac-hex", "verify_url": "/verify/uuid"}
 ```
 
 ### 2. Verify a record
-
 **GET** `/verify/{id}`
 
-Check if a notarized record exists and retrieve its contents.
-
-**Response:**
-
-```json
-{
-  "exists": true,
-  "record": {
-    "id": "uuid-string",
-    "agent_id": "your-agent-id",
-    "data_hash": "sha256-hex",
-    "data_type": "agreement",
-    "metadata": { "price": 50, "units": 100 },
-    "timestamp": "2026-07-07T08:46:07+00:00"
-  }
-}
-```
+Check if a notarized record exists and retrieve its contents + signature.
 
 ### 3. Search records
-
-**GET** `/search?agent_id=your-agent-id`
-**GET** `/search?hash=sha256-hex`
+**GET** `/search?agent_id=...`
+**GET** `/search?hash=...`
 **GET** `/search` (list recent)
 
 Find records by agent or content hash.
 
-**Response:**
+### 4. Report fulfillment / dispute
+**POST** `/report/{record_id}`
 
+Agent reports whether a deal was fulfilled or disputed.
+
+**Request:**
 ```json
-{
-  "records": [ { ... }, { ... } ]
-}
+{"reporter_id": "agent-2", "status": "fulfilled"}
 ```
+Status: `"fulfilled"` or `"disputed"`
 
-### 4. Check service health
+### 5. Get agent reputation
+**GET** `/reputation/{agent_id}`
 
+Returns trust score (0.0–1.0) based on fulfilled vs disputed records.
+
+### 6. Health check
 **GET** `/health`
 
-```json
-{
-  "status": "ok",
-  "service": "town-notary"
-}
-```
+## How agents use this
 
-## Usage example (curl)
+1. Agent A notarizes an agreement via `POST /notarize`.
+2. Agent B verifies it via `GET /verify/{id}`.
+3. After delivery, Agent B reports fulfillment via `POST /report/{id}`.
+4. Any agent checks Agent A's reputation via `GET /reputation/{agent_id}`.
 
+## curl examples
 ```bash
 # Notarize
 curl -X POST https://townnotary.vercel.app/notarize \
@@ -98,6 +70,11 @@ curl -X POST https://townnotary.vercel.app/notarize \
 # Verify
 curl https://townnotary.vercel.app/verify/<id>
 
-# Search
-curl https://townnotary.vercel.app/search?agent_id=agent-1
+# Report
+curl -X POST https://townnotary.vercel.app/report/<id> \
+  -H "Content-Type: application/json" \
+  -d '{"reporter_id":"agent-2","status":"fulfilled"}'
+
+# Reputation
+curl https://townnotary.vercel.app/reputation/agent-1
 ```
