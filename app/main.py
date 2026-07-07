@@ -72,6 +72,24 @@ def startup():
     get_db().close()
 
 
+@app.get("/")
+def root():
+    return {
+        "service": "Town Notary",
+        "version": "0.1.0",
+        "description": "Timestamp and verify data records for AI agents.",
+        "endpoints": {
+            "POST /notarize": "Store a data record and get a unique ID + content hash",
+            "GET /verify/{id}": "Check if a notarized record exists",
+            "GET /search": "Find records by agent_id or hash",
+            "DELETE /revoke/{id}": "Revoke a record",
+            "GET /health": "Health check",
+            "GET /docs": "Interactive API docs",
+        },
+        "base_url": "https://townnotary.vercel.app",
+    }
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "town-notary", "version": "0.1.0"}
