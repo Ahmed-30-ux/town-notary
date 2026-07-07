@@ -32,8 +32,9 @@ def get_db():
         id TEXT PRIMARY KEY, record_id TEXT NOT NULL, reporter_id TEXT NOT NULL,
         status TEXT NOT NULL, timestamp TEXT NOT NULL
     )""")
-    for col in ("data_hash", "agent_id", "record_id"):
-        db.execute(f"CREATE INDEX IF NOT EXISTS idx_{col} ON notary({col})")
+    for col in ("data_hash", "agent_id"):
+        db.execute(f"CREATE INDEX IF NOT EXISTS idx_notary_{col} ON notary({col})")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_reputation_record ON reputation(record_id)")
     db.commit()
     return db
 
@@ -169,142 +170,8 @@ def reputation(agent_id: str):
 
 
 # ── UI Dashboard ──────────────────────────────────────────────────────
+from app.ui import UI_HTML
+
 @app.get("/", response_class=HTMLResponse)
 def ui():
     return HTMLResponse(UI_HTML)
-
-
-UI_HTML = r"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Town Notary</title>
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:-apple-system,BlinkMacSystemFont,sans-serif; background:#0a0a0f; color:#e0e0e0; }
-  .container { max-width:960px; margin:0 auto; padding:2rem; }
-  h1 { font-size:2rem; background:linear-gradient(135deg,#a78bfa,#60a5fa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:.5rem; }
-  .subtitle { color:#888; margin-bottom:2rem; }
-  .card { background:#14141f; border:1px solid #2a2a3a; border-radius:12px; padding:1.5rem; margin-bottom:1.5rem; }
-  .card h2 { font-size:1.2rem; margin-bottom:1rem; color:#a78bfa; }
-  label { display:block; font-size:.85rem; color:#888; margin-bottom:.3rem; }
-  input,textarea,select { width:100%; padding:.6rem; background:#1a1a28; border:1px solid #333; border-radius:8px; color:#e0e0e0; font-size:.9rem; margin-bottom:1rem; }
-  textarea { font-family:monospace; resize:vertical; min-height:60px; }
-  button { background:#a78bfa; color:#000; border:none; padding:.6rem 1.5rem; border-radius:8px; font-size:.9rem; font-weight:600; cursor:pointer; }
-  button:hover { background:#b99dfb; }
-  button:disabled { opacity:.5; cursor:not-allowed; }
-  pre { background:#1a1a28; padding:1rem; border-radius:8px; overflow-x:auto; font-size:.8rem; margin-top:.5rem; }
-  .tabs { display:flex; gap:.5rem; margin-bottom:1.5rem; }
-  .tab { padding:.5rem 1rem; border-radius:8px; cursor:pointer; background:#1a1a28; color:#888; }
-  .tab.active { background:#a78bfa; color:#000; font-weight:600; }
-  .nav { display:flex; gap:1rem; margin-bottom:2rem; }
-  .nav a { color:#60a5fa; text-decoration:none; font-size:.85rem; }
-  .badge { display:inline-block; padding:.15rem .5rem; border-radius:4px; font-size:.75rem; font-weight:600; }
-  .badge.ok { background:#065f46; color:#6ee7b7; }
-  .badge.fail { background:#7f1d1d; color:#fca5a5; }
-</style>
-</head>
-<body>
-<div class="container">
-  <h1>Town Notary</h1>
-  <p class="subtitle">Timestamp, verify, and build reputation for AI agent interactions on NANDA Town.</p>
-
-  <div class="nav">
-    <a href="#" onclick="showTab('notarize');return false">Notarize</a>
-    <a href="#" onclick="showTab('verify');return false">Verify</a>
-    <a href="#" onclick="showTab('search');return false">Search</a>
-    <a href="#" onclick="showTab('reputation');return false">Reputation</a>
-    <a href="#" onclick="showTab('recent');return false">Recent Records</a>
-    <a href="/docs" target="_blank">API Docs</a>
-  </div>
-
-  <div id="notarize" class="tab-content card">
-    <h2>Notarize Data</h2>
-    <label>Agent ID</label>
-    <input id="n-agent" value="agent-1" placeholder="your-agent-id">
-    <label>Data</label>
-    <textarea id="n-data" placeholder="Data to notarize">I agree to deliver 100 units at price 50</textarea>
-    <label>Data Type</label>
-    <input id="n-type" value="agreement">
-    <button onclick="notarize()">Notarize</button>
-    <pre id="n-result"></pre>
-  </div>
-
-  <div id="verify" class="tab-content card" style="display:none">
-    <h2>Verify Record</h2>
-    <label>Record ID</label>
-    <input id="v-id" placeholder="uuid from notarize">
-    <button onclick="verify()">Verify</button>
-    <pre id="v-result"></pre>
-  </div>
-
-  <div id="search" class="tab-content card" style="display:none">
-    <h2>Search Records</h2>
-    <label>Agent ID (optional)</label>
-    <input id="s-agent" placeholder="agent-id">
-    <label>Data Hash (optional)</label>
-    <input id="s-hash" placeholder="sha256 hex">
-    <button onclick="search()">Search</button>
-    <pre id="s-result"></pre>
-  </div>
-
-  <div id="reputation" class="tab-content card" style="display:none">
-    <h2>Agent Reputation</h2>
-    <label>Agent ID</label>
-    <input id="r-agent" value="agent-1">
-    <button onclick="reputation()">Get Score</button>
-    <pre id="r-result"></pre>
-  </div>
-
-  <div id="recent" class="tab-content card" style="display:none">
-    <h2>Recent Records</h2>
-    <button onclick="recent()">Refresh</button>
-    <pre id="recent-result"></pre>
-  </div>
-</div>
-
-<script>
-const BASE = window.location.origin;
-async function api(method, path, body) {
-  const opts = { method, headers:{"Content-Type":"application/json"} };
-  if (body) opts.body = JSON.stringify(body);
-  const r = await fetch(BASE + path, opts);
-  return r.ok ? r.json() : { error: r.status + " " + r.statusText, body: await r.text() };
-}
-function showTab(name) {
-  document.querySelectorAll(".tab-content").forEach(t => t.style.display = "none");
-  const el = document.getElementById(name);
-  if (el) el.style.display = "block";
-}
-async function notarize() {
-  const r = await api("POST", "/notarize", { agent_id: document.getElementById("n-agent").value, data: document.getElementById("n-data").value, data_type: document.getElementById("n-type").value });
-  document.getElementById("n-result").textContent = JSON.stringify(r, null, 2);
-}
-async function verify() {
-  const id = document.getElementById("v-id").value;
-  const r = await api("GET", "/verify/" + id);
-  document.getElementById("v-result").textContent = JSON.stringify(r, null, 2);
-}
-async function search() {
-  const p = new URLSearchParams();
-  const a = document.getElementById("s-agent").value;
-  const h = document.getElementById("s-hash").value;
-  if (a) p.set("agent_id", a);
-  if (h) p.set("hash", h);
-  const r = await api("GET", "/search?" + p.toString());
-  document.getElementById("s-result").textContent = JSON.stringify(r, null, 2);
-}
-async function reputation() {
-  const id = document.getElementById("r-agent").value;
-  const r = await api("GET", "/reputation/" + encodeURIComponent(id));
-  document.getElementById("r-result").textContent = JSON.stringify(r, null, 2);
-}
-async function recent() {
-  const r = await api("GET", "/search?limit=10");
-  document.getElementById("recent-result").textContent = JSON.stringify(r, null, 2);
-}
-showTab("notarize");
-</script>
-</body>
-</html>"""
