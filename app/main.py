@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import uuid
 from datetime import datetime, timezone
@@ -12,7 +13,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-DB_PATH = Path(__file__).resolve().parent.parent / "notary.db"
+_is_vercel = bool(os.environ.get("VERCEL"))
+DB_PATH = Path("/tmp/notary.db") if _is_vercel else Path(__file__).resolve().parent.parent / "notary.db"
 
 app = FastAPI(title="Town Notary", version="0.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
